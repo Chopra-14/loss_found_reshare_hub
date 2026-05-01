@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Found Items — Campus ReShare Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    if(!localStorage.getItem("user")){ window.location.href = "login.html"; }
+    if(localStorage.getItem("theme")==="dark") document.documentElement.setAttribute("data-theme","dark");
+  </script>
+
+  <!-- ✅ Firebase FIRST -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyAEZf8xbIFCzjHZ5PzzhMFltAOmnluJnwk",
+      authDomain: "campus-reshare.firebaseapp.com",
+      databaseURL: "https://campus-reshare-default-rtdb.firebaseio.com/",
+      projectId: "campus-reshare",
+      storageBucket: "campus-reshare.appspot.com",
+      messagingSenderId: "182045823730",
+      appId: "1:182045823730:web:fe14335d18c777acaf766b"
+    };
+    if(!firebase.apps.length){ firebase.initializeApp(firebaseConfig); }
+  </script>
+</head>
+<body>
+
+<header class="navbar">
+  <div class="logo">ReShare Hub</div>
+  <nav>
+    <a href="index.html">Dashboard</a>
+    <a href="lost-items.html">Lost Items</a>
+    <a class="active" href="found-items.html">Found Items</a>
+    <a href="found-items.html">Marketplace</a>
+    <span id="userEmail" class="user-email"></span>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <button onclick="logout()" class="logout-btn">Logout</button>
+  </nav>
+</header>
+
+<div class="lost-items-page">
+  <h1>Found Items</h1>
+  <p>Browse items found on campus</p>
+
+  <div class="search-filter" style="margin-top:20px">
+    <input type="text" id="searchInput" placeholder="Search items..." class="search-box">
+    <select id="categoryFilter" class="filter-box">
+      <option value="all">All Categories</option>
+      <option value="Electronics">Electronics</option>
+      <option value="Personal Items">Personal Items</option>
+      <option value="Books">Books</option>
+      <option value="Accessories">Accessories</option>
+      <option value="Clothing">Clothing</option>
+      <option value="Others">Others</option>
+    </select>
+    <button onclick="openForm()" class="report-btn">+ Report Found Item</button>
+  </div>
+
+  <div class="items-grid" id="itemsGrid">
+    <p style="color:var(--text-2);padding:10px">⏳ Loading items from Firebase...</p>
+  </div>
+  <div id="firebase-debug" style="display:none;margin:10px;padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b;"></div>
+</div>
+
+<!-- REPORT POPUP -->
+<div id="popupForm" class="popup">
+  <div class="popup-content modern-form">
+    <h2>📦 Report Found Item</h2>
+    <div class="input-group"><span>📝</span><input type="text" id="itemName" placeholder="Item Name"></div>
+    <div class="input-group"><span>📂</span>
+      <select id="itemCategory">
+        <option value="">Select Category</option>
+        <option value="Electronics">Electronics</option>
+        <option value="Personal Items">Personal Items</option>
+        <option value="Books">Books</option>
+        <option value="Accessories">Accessories</option>
+        <option value="Clothing">Clothing</option>
+        <option value="Others">Others</option>
+      </select>
+    </div>
+    <div class="input-group"><span>📍</span><input type="text" id="itemLocation" placeholder="Where you found it"></div>
+    <div class="input-group"><span>👤</span><input type="text" id="contactName" placeholder="Your Name"></div>
+    <div class="input-group"><span>📞</span><input type="text" id="contactPhone" placeholder="Phone Number"></div>
+    <div class="upload-box"><label>📸 Upload Image</label><input type="file" id="itemImage" accept="image/*"></div>
+    <div class="form-buttons">
+      <button onclick="submitForm()" class="submit-btn">🚀 Submit</button>
+      <button onclick="closeForm()" class="close-btn">✖ Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHAT POPUP -->
+<div id="chatBox" class="popup">
+  <div class="popup-content chat-popup-content">
+    <div class="chat-header">
+      <h3 id="chatTitle">💬 Chat</h3>
+      <button onclick="closeChat()" class="close-chat-btn">✖</button>
+    </div>
+    <div id="chatMessages" class="chat-messages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Type a message..." class="chat-input-field">
+      <button onclick="sendMessage()" class="send-btn">Send</button>
+    </div>
+  </div>
+</div>
+<div id="imageModal" class="image-modal">
+  <span onclick="closeImage()" class="close-modal">✖</span>
+  <img id="modalImg" class="modal-content">
+</div>
+
+<script src="auth.js"></script>
+<script src="script.js"></script>
+<script>
+  function toggleTheme(){
+    var isDark = document.documentElement.getAttribute("data-theme")==="dark";
+    var next = isDark ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    document.querySelector(".theme-toggle").innerText = next==="dark" ? "☀️" : "🌙";
+  }
+  if(localStorage.getItem("theme")==="dark")
+    document.querySelector(".theme-toggle").innerText = "☀️";
+</script>
+</body>
+</html>

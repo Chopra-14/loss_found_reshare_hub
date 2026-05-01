@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Campus ReShare Hub — Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-bg">
+<div class="login-card">
+  <div class="login-panel">
+    <div class="login-brand">
+      <div class="login-brand-icon">📚</div>
+      <span class="login-brand-name">ReShare Hub</span>
+    </div>
+    <h1 class="login-title">Welcome back,<br>Student 👋</h1>
+    <p class="login-sub">Sign in with your college email</p>
+    <div class="login-field">
+      <label>College Email</label>
+      <div class="login-input-wrap">
+        <span>✉️</span>
+        <input type="email" id="email" placeholder="yourname@aec.edu.in">
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <div class="login-input-wrap">
+        <span>🔒</span>
+        <input type="password" id="pwd" placeholder="Enter your password">
+        <button class="eye-btn" onclick="togglePwd()">👁</button>
+      </div>
+    </div>
+    <div class="login-row">
+      <label class="remember"><input type="checkbox"> Remember me</label>
+      <a class="forgot" onclick="forgotPassword()">Forgot Password?</a>
+    </div>
+    <p class="login-error" id="loginError"></p>
+    <button class="btn-login" onclick="doLogin()">Log In →</button>
+  </div>
+  <div class="welcome-panel">
+    <div class="wp-badge"><span class="wp-dot"></span> Campus Network</div>
+    <h2 class="wp-title">Trade Smart.<br><span>Find Fast.</span><br>Recover.</h2>
+    <p class="wp-sub">Reunite with lost belongings and trade second-hand items — all within your campus community.</p>
+    <div class="wp-stats">
+      <div class="wp-stat"><div class="wp-stat-num">🔒</div><div class="wp-stat-label">College Only</div></div>
+      <div class="wp-divider"></div>
+      <div class="wp-stat"><div class="wp-stat-num">📦</div><div class="wp-stat-label">Buy &amp; Sell</div></div>
+      <div class="wp-divider"></div>
+      <div class="wp-stat"><div class="wp-stat-num">🔍</div><div class="wp-stat-label">Lost &amp; Found</div></div>
+    </div>
+  </div>
+</div>
+<script>
+function togglePwd(){ const p=document.getElementById("pwd"); p.type=p.type==="password"?"text":"password"; }
+function doLogin(){
+  const email=document.getElementById("email").value.trim();
+  const pwd=document.getElementById("pwd").value.trim();
+  const err=document.getElementById("loginError");
+  err.innerText="";
+  if(!email||!pwd){err.innerText="Please fill all fields.";return;}
+  if(!["@aec.edu.in","@acet.edu.in","@acoe.edu.in"].some(d=>email.endsWith(d))){err.innerText="Use your college email only!";return;}
+  if(pwd.length<4){err.innerText="Password too short!";return;}
+  localStorage.setItem("user",email);
+  window.location.href="index.html";
+}
+function forgotPassword(){ const e=prompt("Enter your college email:"); if(e) alert("Reset link sent to: "+e); }
+document.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+</script>
+</body>
+</html>

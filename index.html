@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campus ReShare Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+
+<script>
+  if(!localStorage.getItem("user")){ window.location.href="login.html"; }
+  if(localStorage.getItem("theme")==="dark") document.documentElement.setAttribute("data-theme","dark");
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey:"AIzaSyAEZf8xbIFCzjHZ5PzzhMFltAOmnluJnwk",
+    authDomain:"campus-reshare.firebaseapp.com",
+    databaseURL:"https://campus-reshare-default-rtdb.firebaseio.com/",
+    projectId:"campus-reshare",
+    storageBucket:"campus-reshare.appspot.com",
+    messagingSenderId:"182045823730",
+    appId:"1:182045823730:web:fe14335d18c777acaf766b"
+  };
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  var db = firebase.database();
+</script>
+
+<style>
+/* ══ CHAT FAB ══ */
+#fab {
+  position:fixed; bottom:24px; right:24px;
+  width:62px; height:62px; border-radius:50%;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  border:none; cursor:pointer; font-size:26px; color:#fff;
+  box-shadow:0 6px 28px rgba(79,70,229,0.55);
+  z-index:9999; display:flex; align-items:center; justify-content:center;
+  transition:transform 0.2s; animation:pulse-glow 2.5s infinite;
+}
+#fab:hover { transform:scale(1.1); }
+@keyframes pulse-glow {
+  0%,100% { box-shadow:0 6px 28px rgba(79,70,229,0.55); }
+  50%      { box-shadow:0 6px 40px rgba(124,58,237,0.75); }
+}
+.fab-badge {
+  position:absolute; top:-1px; right:-1px;
+  width:20px; height:20px; background:#ef4444; border-radius:50%;
+  border:2.5px solid var(--bg,#f4f6fb);
+  font-size:9px; font-weight:800; color:#fff;
+  display:none; align-items:center; justify-content:center;
+}
+
+/* ══ CHAT BOX ══ */
+#chatbox {
+  display:none; position:fixed; bottom:100px; right:24px;
+  width:370px; background:var(--surface,#fff);
+  border-radius:20px; box-shadow:0 20px 64px rgba(0,0,0,0.2);
+  flex-direction:column; overflow:hidden; z-index:9998;
+  border:1px solid rgba(79,70,229,0.12);
+  font-family:'DM Sans',sans-serif;
+  max-height:580px;
+}
+[data-theme="dark"] #chatbox { background:#1a2035; border-color:rgba(255,255,255,0.08); }
+#chatbox.show { display:flex; animation:chat-pop 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes chat-pop { from{opacity:0;transform:translateY(16px) scale(0.96);} to{opacity:1;transform:translateY(0) scale(1);} }
+
+/* ══ CHAT HEADER ══ */
+.cbh {
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  padding:13px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0;
+}
+.cbh-av {
+  width:38px; height:38px; background:rgba(255,255,255,0.2); border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:1.2rem;
+  border:2px solid rgba(255,255,255,0.3); flex-shrink:0;
+}
+.cbh-info { flex:1; }
+.cbh-name { color:#fff; font-weight:800; font-size:13.5px; }
+.cbh-sub  { color:rgba(255,255,255,0.72); font-size:10.5px; display:flex; align-items:center; gap:4px; margin-top:2px; }
+.cbh-sub::before { content:''; width:6px; height:6px; background:#4ade80; border-radius:50%; display:inline-block; animation:blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+.cbh-x {
+  background:rgba(255,255,255,0.15); border:none; color:#fff;
+  width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+}
+.cbh-x:hover { background:rgba(255,255,255,0.28); }
+
+/* ══ TABS ══ */
+.cbtabs { display:flex; flex-shrink:0; background:#f0f1fe; border-bottom:1px solid #e0e7ff; }
+[data-theme="dark"] .cbtabs { background:#141929; border-color:rgba(255,255,255,0.07); }
+.cbtab {
+  flex:1; padding:10px 4px; border:none; background:transparent;
+  font-size:11.5px; font-weight:700; cursor:pointer;
+  color:#6b7280; border-bottom:2.5px solid transparent;
+  font-family:'DM Sans',sans-serif; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:3px;
+}
+.cbtab.on { color:#4f46e5; border-bottom-color:#4f46e5; background:#fff; }
+[data-theme="dark"] .cbtab.on { background:#1a2035; color:#818cf8; }
+[data-theme="dark"] .cbtab    { color:#64748b; }
+
+/* ══ MESSAGES ══ */
+#cbmsgs, #ai-msgs {
+  flex:1; overflow-y:auto; padding:12px;
+  display:flex; flex-direction:column; gap:9px;
+  background:#f8f9ff; min-height:200px; max-height:260px;
+}
+[data-theme="dark"] #cbmsgs,
+[data-theme="dark"] #ai-msgs { background:#131827; }
+
+.mbot, .muser { display:flex; gap:7px; max-width:92%; }
+.muser { align-self:flex-end; flex-direction:row-reverse; }
+.mav {
+  width:30px; height:30px; border-radius:50; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:800; border-radius:50%;
+}
+.mbot  .mav { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; }
+.muser .mav { background:#4f46e5; color:#fff; font-size:11px; }
+.mbbl { padding:9px 13px; border-radius:14px; font-size:13px; line-height:1.55; }
+.mbot  .mbbl {
+  background:#fff; color:#1f2937; border:1px solid #e8eaf6;
+  border-radius:4px 14px 14px 14px; box-shadow:0 1px 4px rgba(0,0,0,0.05);
+}
+[data-theme="dark"] .mbot .mbbl { background:#1e2a40; color:#e2e8f0; border-color:rgba(255,255,255,0.07); }
+.muser .mbbl { background:#4f46e5; color:#fff; border-radius:14px 4px 14px 14px; }
+
+/* ══ ITEM CARD IN CHAT ══ */
+.cbcard { margin-top:6px; border:1px solid #e8eaf6; border-radius:10px; overflow:hidden; background:#fff; }
+[data-theme="dark"] .cbcard { background:#1a2035; border-color:rgba(255,255,255,0.08); }
+.cbcard img { width:100%; height:75px; object-fit:cover; display:block; }
+.cbcard-body { padding:7px 10px; }
+.cbtag { font-size:9px; font-weight:800; padding:2px 8px; border-radius:8px; display:inline-block; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.05em; }
+.tgl { background:#fef2f2; color:#dc2626; }
+.tgf { background:#f0fdf4; color:#16a34a; }
+.cbcname { font-size:12.5px; font-weight:700; color:#1f2937; margin-bottom:2px; }
+[data-theme="dark"] .cbcname { color:#e2e8f0; }
+.cbcmeta { font-size:11px; color:#6b7280; }
+
+/* ══ TYPING DOTS ══ */
+.dots { display:flex; gap:4px; padding:2px 0; align-items:center; }
+.dots span {
+  width:7px; height:7px; background:#4f46e5; border-radius:50%;
+  animation:dot-jump 1.2s infinite;
+}
+.dots span:nth-child(2) { animation-delay:0.2s; }
+.dots span:nth-child(3) { animation-delay:0.4s; }
+@keyframes dot-jump { 0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-7px);} }
+
+/* ══ CHIPS ══ */
+.cbchips {
+  display:flex; flex-wrap:wrap; gap:5px; padding:7px 12px;
+  border-top:1px solid #e8eaf6; background:#fff; flex-shrink:0;
+}
+[data-theme="dark"] .cbchips { background:#1a2035; border-color:rgba(255,255,255,0.07); }
+.cbchip {
+  padding:5px 11px; border-radius:20px; border:1.5px solid #e8eaf6;
+  background:#f8f9ff; color:#374151; font-size:11.5px; font-weight:600;
+  cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s;
+}
+[data-theme="dark"] .cbchip { background:#1e2a40; color:#cbd5e1; border-color:rgba(255,255,255,0.1); }
+.cbchip:hover { background:#4f46e5; color:#fff; border-color:#4f46e5; }
+
+/* ══ INPUT ROW ══ */
+.cbrow {
+  display:flex; gap:8px; padding:10px 12px;
+  background:#fff; border-top:1px solid #e8eaf6; flex-shrink:0;
+}
+[data-theme="dark"] .cbrow { background:#1a2035; border-color:rgba(255,255,255,0.07); }
+.cbrow input {
+  flex:1; padding:9px 14px; border:1.5px solid #e8eaf6; border-radius:50px;
+  font-size:13px; outline:none; font-family:'DM Sans',sans-serif;
+  background:#f8f9ff; color:#1f2937;
+}
+[data-theme="dark"] .cbrow input { background:#131827; color:#e2e8f0; border-color:rgba(255,255,255,0.1); }
+.cbrow input:focus { border-color:#4f46e5; }
+.cbrow button {
+  padding:9px 17px; background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff;
+  border:none; border-radius:50px; font-size:13px; font-weight:700;
+  cursor:pointer; font-family:'DM Sans',sans-serif;
+}
+.cbrow button:hover { opacity:0.9; }
+
+/* ══ GUIDE ══ */
+.guide-panel { padding:12px; background:#f8f9ff; flex:1; overflow-y:auto; max-height:340px; }
+[data-theme="dark"] .guide-panel { background:#131827; }
+.guide-option {
+  display:flex; align-items:center; gap:12px;
+  background:#fff; border:1.5px solid #e8eaf6; border-radius:14px;
+  padding:13px; margin-bottom:9px; cursor:pointer; transition:all 0.2s;
+}
+[data-theme="dark"] .guide-option { background:#1e2a40; border-color:rgba(255,255,255,0.08); }
+.guide-option:hover { border-color:#4f46e5; transform:translateY(-2px); box-shadow:0 4px 16px rgba(79,70,229,0.12); }
+.guide-option-icon { font-size:1.8rem; flex-shrink:0; }
+.guide-option-title { font-weight:700; font-size:13.5px; color:#1f2937; margin-bottom:2px; }
+[data-theme="dark"] .guide-option-title { color:#e2e8f0; }
+.guide-option-sub { font-size:11.5px; color:#6b7280; }
+.guide-step { display:flex; gap:10px; align-items:flex-start; background:#f0f4ff; border:1px solid #c7d2fe; border-radius:11px; padding:10px 12px; margin-top:7px; }
+[data-theme="dark"] .guide-step { background:rgba(79,70,229,0.1); border-color:rgba(79,70,229,0.3); }
+.guide-step-num { width:24px; height:24px; background:#4f46e5; color:#fff; border-radius:50%; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.guide-step-text { font-size:12.5px; color:#1f2937; line-height:1.55; }
+[data-theme="dark"] .guide-step-text { color:#e2e8f0; }
+.guide-step-text b { color:#4f46e5; }
+.guide-link { display:inline-flex; align-items:center; gap:5px; background:#4f46e5; color:#fff; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; text-decoration:none; margin-top:10px; cursor:pointer; border:none; font-family:'DM Sans',sans-serif; }
+.guide-link:hover { background:#4338ca; }
+.guide-link.green { background:#16a34a; }
+
+/* ══ AI CHAT TAB ══ */
+.ai-sq-box { padding:9px 12px; background:#f0f1ff; border-bottom:1px solid #e0e7ff; flex-shrink:0; }
+[data-theme="dark"] .ai-sq-box { background:rgba(79,70,229,0.08); border-color:rgba(79,70,229,0.2); }
+.ai-sq-label { font-size:9.5px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:7px; }
+.ai-sq-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.ai-sq {
+  padding:5px 11px; border-radius:20px; border:1.5px solid #c7d2fe;
+  background:#fff; color:#4f46e5; font-size:11px; font-weight:600;
+  cursor:pointer; font-family:'DM Sans',sans-serif; transition:all 0.18s;
+}
+[data-theme="dark"] .ai-sq { background:#1e2a40; color:#818cf8; border-color:rgba(79,70,229,0.3); }
+.ai-sq:hover { background:#4f46e5; color:#fff; border-color:#4f46e5; transform:translateY(-1px); }
+
+/* ══ AI INPUT ══ */
+.ai-input-row {
+  display:flex; gap:8px; padding:10px 12px; align-items:center;
+  background:#fff; border-top:1px solid #e8eaf6; flex-shrink:0;
+}
+[data-theme="dark"] .ai-input-row { background:#1a2035; border-color:rgba(255,255,255,0.07); }
+.ai-input-wrap {
+  flex:1; display:flex; align-items:center;
+  background:#f8f9ff; border:1.5px solid #e8eaf6;
+  border-radius:50px; padding:0 14px; transition:border-color 0.2s;
+}
+[data-theme="dark"] .ai-input-wrap { background:#131827; border-color:rgba(255,255,255,0.1); }
+.ai-input-wrap.focused { border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.1); }
+#ai-input {
+  flex:1; padding:9px 0; border:none; outline:none;
+  font-family:'DM Sans',sans-serif; font-size:13px;
+  background:transparent; color:#1f2937;
+}
+[data-theme="dark"] #ai-input { color:#e2e8f0; }
+#ai-send {
+  width:40px; height:40px; border-radius:50%; border:none;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff;
+  font-size:1rem; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 12px rgba(79,70,229,0.4); transition:transform 0.15s;
+}
+#ai-send:hover { transform:scale(1.1); }
+
+/* ══ ANIMATIONS ══ */
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+/* ══ HIDDEN POPUPS needed by script.js ══ */
+#chatBox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:19999; align-items:center; justify-content:center; }
+#imageModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:29999; justify-content:center; align-items:center; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<header class="navbar">
+  <div class="logo">ReShare Hub</div>
+  <nav>
+    <a class="active" href="index.html">Dashboard</a>
+    <a href="lost-items.html">Lost Items</a>
+    <a href="found-items.html">Found Items</a>
+    <a href="found-items.html">Marketplace</a>
+    <span id="userEmail" class="user-email"></span>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+    <button onclick="logout()" class="logout-btn">Logout</button>
+  </nav>
+</header>
+
+<!-- WELCOME -->
+<div class="welcome">
+  <h1>Welcome to Campus ReShare Hub</h1>
+  <p>A platform for lost &amp; found items and campus item exchange</p>
+</div>
+
+<!-- STATS (live from Firebase) -->
+<div class="stats">
+  <div class="stat-card red">  <h3>Lost Items</h3>  <h2 id="statLost">0</h2>  <p>Items reported as lost</p></div>
+  <div class="stat-card green"><h3>Found Items</h3> <h2 id="statFound">0</h2> <p>Items found on campus</p></div>
+  <div class="stat-card blue"> <h3>Marketplace</h3> <h2>4</h2>               <p>Items available for exchange</p></div>
+  <div class="stat-card purple"><h3>Matches Found</h3><h2 id="statMatches">0</h2><p>Potential item matches</p></div>
+</div>
+
+<!-- RECENT LOST -->
+<div class="items">
+  <h2>Recently Lost Items</h2>
+  <div class="items-grid" id="recentLost">
+    <p style="color:var(--text-2);padding:10px">⏳ Loading from Firebase...</p>
+  </div>
+</div>
+
+<!-- ═══ CHAT FAB ═══ -->
+<button id="fab" onclick="chatToggle()">
+  🤖
+  <span class="fab-badge" id="fab-badge">!</span>
+</button>
+
+<!-- ═══ CHATBOX ═══ -->
+<div id="chatbox">
+
+  <!-- Header -->
+  <div class="cbh">
+    <div class="cbh-av">🤖</div>
+    <div class="cbh-info">
+      <div class="cbh-name">Campus AI Assistant</div>
+      <div class="cbh-sub" id="cb-status">Online — Firebase live search active</div>
+    </div>
+    <button class="cbh-x" onclick="chatToggle()">✕</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="cbtabs">
+    <button class="cbtab on" id="tab-search"  onclick="switchTab('search')">🔍 Smart Search</button>
+    <button class="cbtab"    id="tab-guide"   onclick="switchTab('guide')">🧭 Guide Me</button>
+    <button class="cbtab"    id="tab-ai"      onclick="switchTab('ai')">🤖 AI Chat</button>
+  </div>
+
+  <!-- ── TAB 1: SMART SEARCH ── -->
+  <div id="mode-search" style="display:flex;flex-direction:column;overflow:hidden;">
+    <div id="cbmsgs"></div>
+    <div class="cbchips">
+      <button class="cbchip" onclick="cbAsk('show lost items')">📋 All Lost</button>
+      <button class="cbchip" onclick="cbAsk('show found items')">📦 All Found</button>
+      <button class="cbchip" onclick="cbAsk('matches')">🔗 Matches</button>
+      <button class="cbchip" onclick="cbAsk('bag')">🎒 Bag</button>
+      <button class="cbchip" onclick="cbAsk('phone')">📱 Phone</button>
+      <button class="cbchip" onclick="cbAsk('laptop')">💻 Laptop</button>
+      <button class="cbchip" onclick="cbAsk('keys')">🔑 Keys</button>
+    </div>
+    <div class="cbrow">
+      <input id="cb-input" type="text" placeholder="e.g. lost yellow bag near canteen..." onkeydown="if(event.key==='Enter')cbSend()"/>
+      <button onclick="cbSend()">Send</button>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: GUIDE ME ── -->
+  <div id="mode-guide" style="display:none;flex-direction:column;">
+    <div class="guide-panel" id="guide-panel"></div>
+  </div>
+
+  <!-- ── TAB 3: AI CHAT ── -->
+  <div id="mode-ai" style="display:none;flex-direction:column;">
+
+    <!-- Suggested Questions -->
+    <div class="ai-sq-box" id="ai-sq-box">
+      <div class="ai-sq-label">✨ Suggested Questions</div>
+      <div class="ai-sq-chips">
+        <button class="ai-sq" onclick="aiAsk('I lost my phone at the library, what do I do?')">📱 Lost phone</button>
+        <button class="ai-sq" onclick="aiAsk('I found a bag near canteen, what should I do?')">🎒 Found bag</button>
+        <button class="ai-sq" onclick="aiAsk('How do I claim a found item?')">🏷️ How to claim</button>
+        <button class="ai-sq" onclick="aiAsk('How long does claim approval take?')">⏱️ Approval time</button>
+        <button class="ai-sq" onclick="aiAsk('How does item matching work on this platform?')">🔗 Matching</button>
+        <button class="ai-sq" onclick="aiAsk('What details should I include when reporting a lost item?')">📝 Reporting tips</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="ai-msgs"></div>
+
+    <!-- Input -->
+    <div class="ai-input-row">
+      <div class="ai-input-wrap" id="ai-wrap">
+        <input id="ai-input" type="text" placeholder="Ask anything about campus lost &amp; found..."
+          onkeydown="if(event.key==='Enter')aiSend()"
+          onfocus="document.getElementById('ai-wrap').classList.add('focused')"
+          onblur="document.getElementById('ai-wrap').classList.remove('focused')"/>
+      </div>
+      <button id="ai-send" onclick="aiSend()">➤</button>
+    </div>
+
+  </div>
+
+</div><!-- end chatbox -->
+
+<!-- Popups required by script.js — DO NOT REMOVE -->
+<div id="chatBox" onclick="if(event.target===this)closeChat()">
+  <div style="background:#fff;border-radius:16px;width:90%;max-width:400px;display:flex;flex-direction:column;max-height:80vh;overflow:hidden;">
+    <div style="background:#1e3a5f;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <h3 id="chatTitle" style="color:#fff;font-size:14px;margin:0;">💬 Chat</h3>
+      <button onclick="closeChat()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
+    </div>
+    <div id="chatMessages" style="flex:1;overflow-y:auto;padding:12px;min-height:180px;background:#f9fafb;"></div>
+    <div style="display:flex;gap:8px;padding:10px 12px;border-top:1px solid #e5e7eb;">
+      <input id="chatInput" type="text" placeholder="Type a message..." style="flex:1;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:50px;outline:none;font-size:13px;font-family:'DM Sans',sans-serif;" onkeydown="if(event.key==='Enter')sendMessage()">
+      <button onclick="sendMessage()" style="padding:8px 16px;background:#3b4fd8;color:#fff;border:none;border-radius:50px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="imageModal" onclick="if(event.target===this)closeImage()">
+  <button onclick="closeImage()" style="position:fixed;top:20px;right:24px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:44px;height:44px;border-radius:50%;font-size:18px;cursor:pointer;font-weight:700;z-index:30000;">✕</button>
+  <img id="modalImg" alt="Item" style="max-width:88vw;max-height:85vh;object-fit:contain;border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,0.7);">
+</div>
+
+<script src="auth.js"></script>
+<script src="script.js"></script>
+
+<script>
+// ════════════════════════════════════════════════
+// USER INFO
+// ════════════════════════════════════════════════
+var USER_EMAIL = localStorage.getItem("user") || "";
+var USER_ROLL  = USER_EMAIL.split("@")[0].toUpperCase(); // e.g. 23A91A6127
+var UINIT      = USER_ROLL[0] || "U"; // first char for avatar
+
+// ════════════════════════════════════════════════
+// THEME
+// ════════════════════════════════════════════════
+function toggleTheme(){
+  var d = document.documentElement.getAttribute("data-theme") === "dark";
+  var n = d ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", n);
+  localStorage.setItem("theme", n);
+  document.querySelector(".theme-toggle").innerText = n === "dark" ? "☀️" : "🌙";
+}
+
+// ════════════════════════════════════════════════
+// PAGE INIT
+// ════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", function(){
+  if(localStorage.getItem("theme") === "dark")
+    document.querySelector(".theme-toggle").innerText = "☀️";
+
+  document.getElementById("userEmail").innerText = USER_EMAIL;
+
+  // Live Firebase stats
+  var lostArr = [], foundArr = [];
+
+  db.ref("lostItems").on("value", function(snap){
+    lostArr = [];
+    snap.forEach(function(c){ lostArr.push(c.val()); });
+    document.getElementById("statLost").innerText = lostArr.length;
+    updateMatches(lostArr, foundArr);
+    renderRecent(lostArr);
+  });
+
+  db.ref("foundItems").on("value", function(snap){
+    foundArr = [];
+    snap.forEach(function(c){ foundArr.push(c.val()); });
+    document.getElementById("statFound").innerText = foundArr.length;
+    updateMatches(lostArr, foundArr);
+  });
+
+  // Show FAB badge after 2.5s
+  setTimeout(function(){
+    var b = document.getElementById("fab-badge");
+    if(b && !chatIsOpen) b.style.display = "flex";
+  }, 2500);
+});
+
+function updateMatches(lost, found){
+  var n = 0;
+  lost.forEach(function(l){
+    found.forEach(function(f){
+      if(!l.name || !f.name) return;
+      var lw = l.name.toLowerCase().split(" ");
+      var fn = f.name.toLowerCase();
+      if(lw.some(function(w){ return w.length > 2 && fn.indexOf(w) !== -1; })) n++;
+    });
+  });
+  document.getElementById("statMatches").innerText = n;
+}
+
+function renderRecent(items){
+  var g = document.getElementById("recentLost");
+  if(!items.length){
+    g.innerHTML = "<p style='color:var(--text-2);padding:10px'>No lost items yet.</p>";
+    return;
+  }
+  var h = "";
+  items.slice(-4).reverse().forEach(function(v){
+    var img = (v.image && v.image.length > 20)
+      ? v.image : "https://placehold.co/300x180/e4e8f0/9ca3af?text=No+Image";
+    h += '<div class="item-card">'
+      + '<img src="' + img + '" class="item-img" onerror="this.src=\'https://placehold.co/300x180/e4e8f0/9ca3af?text=No+Image\'">'
+      + '<div class="card-body">'
+      + '<h3 class="item-title">' + esc(v.name) + '</h3>'
+      + '<p>📂 ' + esc(v.category) + '</p>'
+      + '<p>📍 ' + esc(v.location) + '</p>'
+      + '<p>📅 ' + esc(v.date) + '</p>'
+      + (v.flagged ? '<span class="badge" style="background:#fef3c7;color:#92400e">🚩 Flagged</span>' : '<span class="badge active">Active</span>')
+      + '</div></div>';
+  });
+  g.innerHTML = h;
+}
+
+// ════════════════════════════════════════════════
+// CHAT TOGGLE
+// ════════════════════════════════════════════════
+var chatIsOpen   = false;
+var chatGreeted  = false;
+var currentTab   = "search";
+
+function chatToggle(){
+  chatIsOpen = !chatIsOpen;
+  document.getElementById("chatbox").classList.toggle("show", chatIsOpen);
+  document.getElementById("fab-badge").style.display = "none";
+  if(chatIsOpen && !chatGreeted){
+    chatGreeted = true;
+    cbAddBot("👋 Hi <b>" + esc(USER_ROLL) + "</b>! I'm your Campus AI Assistant.<br><br>"
+      + "🔍 <b>Smart Search</b> — search Firebase live<br>"
+      + "🧭 <b>Guide Me</b> — step-by-step help<br>"
+      + "🤖 <b>AI Chat</b> — ask me anything!<br><br>"
+      + "<i>Try a chip below or type your question!</i>");
+  }
+}
+
+// ════════════════════════════════════════════════
+// TAB SWITCHING
+// ════════════════════════════════════════════════
+function switchTab(tab){
+  currentTab = tab;
+  ["search","guide","ai"].forEach(function(t){
+    document.getElementById("mode-" + t).style.display = "none";
+    document.getElementById("tab-"  + t).classList.remove("on");
+  });
+  document.getElementById("mode-" + tab).style.display = "flex";
+  document.getElementById("mode-" + tab).style.flexDirection = "column";
+  document.getElementById("tab-"  + tab).classList.add("on");
+
+  if(tab === "guide") buildGuide();
+  if(tab === "ai")    aiInit();
+}
+
+// ════════════════════════════════════════════════
+// TAB 1 — SMART SEARCH
+// ════════════════════════════════════════════════
+var STOP = "i my a an the lost found have had is was it at in on of to for and or with please help me find looking search missing cant where any color colored colour small big large old new what";
+
+function cbAsk(t){ document.getElementById("cb-input").value = t; cbSend(); }
+
+function cbSend(){
+  var inp = document.getElementById("cb-input");
+  var t   = inp.value.trim();
+  if(!t) return;
+  inp.value = "";
+  cbAddUser(t);
+  cbAddTyping();
+  setTimeout(function(){ cbSearch(t); }, 650);
+}
+
+function cbSearch(text){
+  var q = text.toLowerCase();
+
+  // All lost
+  if(/show lost|lost items|all lost/.test(q)){
+    db.ref("lostItems").once("value", function(s){
+      cbRemoveTyping();
+      if(!s.exists()){ cbAddBot("😔 No lost items yet."); return; }
+      var a = []; s.forEach(function(c){ a.push(c.val()); });
+      var h = "<b>📋 " + a.length + " Lost Item(s):</b>";
+      a.slice(0,5).forEach(function(v){ h += makeCard(v,"lost"); });
+      if(a.length>5) h += '<a href="lost-items.html" style="font-size:11px;color:#4f46e5;display:block;margin-top:4px">View all →</a>';
+      cbAddBot(h);
+    });
+    return;
+  }
+
+  // All found
+  if(/show found|found items|all found/.test(q)){
+    db.ref("foundItems").once("value", function(s){
+      cbRemoveTyping();
+      if(!s.exists()){ cbAddBot("😔 No found items yet."); return; }
+      var a = []; s.forEach(function(c){ a.push(c.val()); });
+      var h = "<b>📦 " + a.length + " Found Item(s):</b>";
+      a.slice(0,5).forEach(function(v){ h += makeCard(v,"found"); });
+      if(a.length>5) h += '<a href="found-items.html" style="font-size:11px;color:#16a34a;display:block;margin-top:4px">View all →</a>';
+      cbAddBot(h);
+    });
+    return;
+  }
+
+  // Matches
+  if(/match/.test(q)){
+    db.ref("lostItems").once("value", function(s1){
+      db.ref("foundItems").once("value", function(s2){
+        cbRemoveTyping();
+        var L=[],F=[];
+        s1.forEach(function(c){ L.push(c.val()); });
+        s2.forEach(function(c){ F.push(c.val()); });
+        var pairs = [];
+        L.forEach(function(l){ F.forEach(function(f){
+          if(!l.name||!f.name) return;
+          var lw = l.name.toLowerCase().split(" ");
+          var fn = f.name.toLowerCase();
+          if(lw.some(function(w){ return w.length>2 && fn.indexOf(w)!==-1; })) pairs.push({l:l,f:f});
+        }); });
+        if(!pairs.length){ cbAddBot("🔗 No matches right now. Check back later!"); return; }
+        var h = "<b>🎉 " + pairs.length + " Match(es):</b>";
+        pairs.slice(0,3).forEach(function(p){
+          h += '<div style="background:rgba(79,70,229,0.07);border-radius:8px;padding:7px 10px;margin-top:5px;font-size:12px;">'
+            + '🔴 ' + esc(p.l.name) + ' ↔ 🟢 ' + esc(p.f.name)
+            + '<br>📞 <b>' + esc(p.f.contactPhone||"—") + '</b></div>';
+        });
+        cbAddBot(h);
+      });
+    });
+    return;
+  }
+
+  // Keyword search
+  var stopArr = STOP.split(" ");
+  var kws = q.replace(/[^a-z0-9\s]/g,"").split(/\s+/).filter(function(w){
+    return w.length > 1 && stopArr.indexOf(w) === -1;
+  });
+  if(!kws.length) kws = [q.replace(/[^a-z0-9\s]/g,"").trim()];
+
+  db.ref("lostItems").once("value", function(s1){
+    db.ref("foundItems").once("value", function(s2){
+      cbRemoveTyping();
+      var LR = [], FR = [];
+
+      function sc(v){
+        var n=(v.name||"").toLowerCase();
+        var c=(v.category||"").toLowerCase();
+        var l=(v.location||"").toLowerCase();
+        var p=0, nm=0;
+        kws.forEach(function(w){
+          if(n.indexOf(w)!==-1){ p+=10; nm++; }
+          if(c.indexOf(w)!==-1) p+=5;
+          if(l.indexOf(w)!==-1) p+=3;
+        });
+        // Require 50% of keywords to match for multi-word queries
+        if(kws.length >= 2 && nm/kws.length < 0.5) return 0;
+        n.split(" ").forEach(function(nw){
+          if(nw.length>2 && q.indexOf(nw)!==-1) p+=8;
+        });
+        return p;
+      }
+
+      s1.forEach(function(c){ var v=c.val(); var p=sc(v); if(p>0) LR.push({v:v,p:p}); });
+      s2.forEach(function(c){ var v=c.val(); var p=sc(v); if(p>0) FR.push({v:v,p:p}); });
+      LR.sort(function(a,b){ return b.p-a.p; });
+      FR.sort(function(a,b){ return b.p-a.p; });
+
+      if(!LR.length && !FR.length){
+        cbAddBot('😔 No items matching <b>"' + esc(kws.join(" ")) + '"</b>.<br>'
+          + '<div style="margin-top:8px;font-size:12px;">'
+          + '<a href="lost-items.html" style="color:#4f46e5">📝 Report as lost</a> &nbsp; '
+          + '<a href="found-items.html" style="color:#16a34a">📦 Report as found</a></div>');
+        return;
+      }
+
+      var h = '🔍 Results for <b>"' + esc(kws.join(" ")) + '"</b>:';
+      if(LR.length){
+        h += '<div style="font-size:10px;font-weight:800;color:#dc2626;margin:6px 0 2px;text-transform:uppercase;">🔴 LOST (' + LR.length + ')</div>';
+        LR.slice(0,3).forEach(function(r){ h += makeCard(r.v,"lost"); });
+      }
+      if(FR.length){
+        h += '<div style="font-size:10px;font-weight:800;color:#16a34a;margin:6px 0 2px;text-transform:uppercase;">🟢 FOUND (' + FR.length + ')</div>';
+        FR.slice(0,3).forEach(function(r){ h += makeCard(r.v,"found"); });
+      }
+      if(LR.length && FR.length){
+        h += '<div style="margin-top:7px;padding:7px 10px;background:rgba(79,70,229,0.08);border-radius:8px;font-size:12px;color:#4f46e5;">💡 Possible match! Contact the finder.</div>';
+      }
+      cbAddBot(h);
+    });
+  });
+}
+
+function makeCard(v, type){
+  var img = (v.image && v.image.length > 20)
+    ? '<img src="' + v.image + '" onerror="this.style.display=\'none\'">' : "";
+  var tc  = type==="lost" ? "tgl" : "tgf";
+  var tt  = type==="lost" ? "🔴 LOST" : "🟢 FOUND";
+  var m   = type==="lost"
+    ? '📍 '+esc(v.location||"—")+' · 📞 '+esc(v.contactPhone||"—")
+    : '📍 '+esc(v.location||"—")+' · 👤 '+esc(v.contactName||"—")+' 📞 '+esc(v.contactPhone||"—");
+  return '<div class="cbcard">' + img
+    + '<div class="cbcard-body">'
+    + '<span class="cbtag ' + tc + '">' + tt + '</span>'
+    + '<div class="cbcname">' + esc(v.name||"Unnamed") + '</div>'
+    + '<div class="cbcmeta">' + m + '</div>'
+    + '</div></div>';
+}
+
+// Smart Search message helpers
+function cbAddUser(t){
+  var box = document.getElementById("cbmsgs");
+  var d = document.createElement("div");
+  d.className = "muser"; d.style.animation = "fadeUp 0.25s ease";
+  d.innerHTML = '<div class="mbbl">' + esc(t) + '</div><div class="mav">' + esc(UINIT) + '</div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function cbAddBot(html){
+  cbRemoveTyping();
+  var box = document.getElementById("cbmsgs");
+  var d = document.createElement("div");
+  d.className = "mbot"; d.style.animation = "fadeUp 0.3s ease";
+  d.innerHTML = '<div class="mav">🤖</div><div class="mbbl">' + html + '</div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function cbAddTyping(){
+  var box = document.getElementById("cbmsgs");
+  var d = document.createElement("div");
+  d.className = "mbot"; d.id = "cb-typing";
+  d.innerHTML = '<div class="mav">🤖</div><div class="mbbl"><div class="dots"><span></span><span></span><span></span></div></div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+function cbRemoveTyping(){ var e=document.getElementById("cb-typing"); if(e) e.parentNode.removeChild(e); }
+
+// ════════════════════════════════════════════════
+// TAB 2 — GUIDE ME
+// ════════════════════════════════════════════════
+function buildGuide(){
+  var p = document.getElementById("guide-panel");
+  p.innerHTML = '<div style="text-align:center;margin-bottom:14px;">'
+    + '<div style="font-size:1.8rem;margin-bottom:4px">🧭</div>'
+    + '<div class="guide-option-title" style="font-weight:800;font-size:14px;margin-bottom:3px">What happened?</div>'
+    + '<div style="font-size:12px;color:#6b7280">I\'ll tell you exactly what to do</div></div>'
+    + guideCard("😟","lost","I Lost Something","Help me find or report my lost item")
+    + guideCard("📦","found","I Found Something","I found an item on campus, what now?")
+    + guideCard("🏷️","claim","I Want to Claim an Item","I see my item in the Found section")
+    + guideCard("🔗","match","Check if My Item is Found","See if someone found what I lost");
+}
+
+function guideCard(icon, type, title, sub){
+  return '<div class="guide-option" onclick="showGuide(\'' + type + '\')">'
+    + '<div class="guide-option-icon">' + icon + '</div>'
+    + '<div><div class="guide-option-title">' + title + '</div>'
+    + '<div class="guide-option-sub">' + sub + '</div></div></div>';
+}
+
+function showGuide(type){
+  var p = document.getElementById("guide-panel");
+  var back = '<button onclick="buildGuide()" style="background:none;border:none;cursor:pointer;font-size:12px;color:#6b7280;margin-bottom:10px;display:flex;align-items:center;gap:4px;font-family:\'DM Sans\',sans-serif;">← Back</button>';
+  var steps = "", title = "", links = "";
+
+  if(type==="lost"){
+    title = "😟 I Lost Something";
+    steps = gStep(1,"<b>Search first!</b> Use Smart Search tab — someone may have already found it.")
+          + gStep(2,"<b>Report it</b> on the Lost Items page with photo, location and contact details.")
+          + gStep(3,"<b>Check daily</b> — you'll see new matches on the dashboard.")
+          + gStep(4,"<b>Contact the finder</b> using the phone number on their found item card.");
+    links = '<a href="lost-items.html" class="guide-link">📝 Report Lost Item</a> '
+          + '<a href="found-items.html" class="guide-link green" style="margin-left:6px">🔍 Browse Found</a>';
+  }
+  if(type==="found"){
+    title = "📦 I Found Something";
+    steps = gStep(1,"<b>Don't ignore it!</b> Someone is desperately looking for this item.")
+          + gStep(2,"<b>Report it</b> on Found Items page immediately. Add a photo — it helps a lot!")
+          + gStep(3,"<b>Keep it safe</b> until the owner contacts you.")
+          + gStep(4,"<b>Verify ownership</b> before handing over — ask them to describe it.");
+    links = '<a href="found-items.html" class="guide-link">📦 Report Found Item</a>';
+  }
+  if(type==="claim"){
+    title = "🏷️ Claim an Item";
+    steps = gStep(1,"<b>Go to Found Items</b> and find your item in the list.")
+          + gStep(2,"<b>Click Claim</b> on the item card and enter your name + phone number.")
+          + gStep(3,"<b>Admin reviews</b> your claim and sends email notification once approved.")
+          + gStep(4,"<b>Contact the finder</b> using their phone number to arrange pickup.");
+    links = '<a href="found-items.html" class="guide-link">🔍 Browse Found Items</a>';
+  }
+  if(type==="match"){
+    title = "🔗 Check for a Match";
+    steps = gStep(1,"<b>Use Smart Search</b> — type your item name e.g. <i>blue bag</i> or <i>iPhone 13</i>.")
+          + gStep(2,"<b>Check the Matches stat</b> on the dashboard — auto-detected matches shown.")
+          + gStep(3,"<b>If a match is found</b>, contact the finder's phone number directly.")
+          + gStep(4,"<b>No match yet?</b> Make sure your lost item is reported so the system can detect it.");
+    links = '<button class="guide-link" onclick="switchTab(\'search\');cbAsk(\'matches\')">🔗 Check Matches</button> '
+          + '<a href="lost-items.html" class="guide-link" style="margin-left:6px;background:#6b7280">📝 Report Lost</a>';
+  }
+
+  p.innerHTML = back
+    + '<div class="guide-option-title" style="font-weight:800;font-size:14px;margin-bottom:10px;">' + title + '</div>'
+    + steps
+    + '<div style="margin-top:12px;">' + links + '</div>';
+}
+
+function gStep(n, text){
+  return '<div class="guide-step"><div class="guide-step-num">' + n + '</div><div class="guide-step-text">' + text + '</div></div>';
+}
+
+// ════════════════════════════════════════════════
+// TAB 3 — AI CHAT (Claude)
+// ════════════════════════════════════════════════
+var aiHistory = [];
+var aiReady   = false;
+var aiLoading = false;
+
+var AI_SYSTEM = "You are the Campus ReShare Hub AI Assistant for Aditya Engineering College (AEC), Surampalem. "
+  + "PLATFORM: "
+  + "Lost Items page — students report lost items with name, category, location, date, photo, contact. "
+  + "Found Items page — students report items they found on campus. "
+  + "Marketplace — students buy/sell textbooks, calculators, lab equipment. "
+  + "Claims — click Claim button, enter name+phone, admin reviews, email sent via Power Automate. "
+  + "Auto-matching — system matches lost+found items by name keywords. "
+  + "Admin Dashboard — ban users, flag items, approve claims, export data. "
+  + "Email domain: @aec.edu.in. "
+  + "RULES: Be warm, helpful, concise. Give numbered steps. Use **bold** for key words. "
+  + "Max 5-6 lines. Never invent item data. "
+  + "If asked who you are: Campus ReShare Hub AI powered by Claude.";
+
+function aiInit(){
+  if(aiReady) return;
+  aiReady = true;
+  aiAddBot("👋 Hi <b>" + esc(USER_ROLL) + "</b>! I'm your <b>Campus AI Assistant</b>.<br>"
+    + "I can help with lost items, found items, claims, and more.<br>"
+    + "<i style='color:#6b7280;font-size:12px;'>Tap a suggestion above or type your question!</i>");
+}
+
+function aiClear(){
+  aiHistory = []; aiReady = false; aiLoading = false;
+  document.getElementById("ai-msgs").innerHTML = "";
+  var sq = document.getElementById("ai-sq-box");
+  if(sq) sq.style.display = "block";
+  aiInit();
+}
+
+function aiAsk(text){
+  var sq = document.getElementById("ai-sq-box");
+  if(sq) sq.style.display = "none";
+  document.getElementById("ai-input").value = text;
+  aiSend();
+}
+
+function aiSend(){
+  if(aiLoading) return;
+  var inp  = document.getElementById("ai-input");
+  var text = (inp.value || "").trim();
+  if(!text) return;
+  inp.value = "";
+
+  var sq = document.getElementById("ai-sq-box");
+  if(sq) sq.style.display = "none";
+
+  aiAddUser(text);
+  aiLoading = true;
+
+  var st = document.getElementById("cb-status");
+  if(st) st.textContent = "AI is thinking...";
+
+  // Works completely offline — no API needed
+  setTimeout(function(){
+    aiLoading = false;
+    var st2 = document.getElementById("cb-status");
+    if(st2) st2.textContent = "Online — Firebase live search active";
+    aiAddBot(aiGetAnswer(text.toLowerCase().trim()));
+  }, 700);
+}
+
+function aiGetAnswer(q){
+  // Lost something
+  if(/i lost|lost my|missing|cant find|where is my/.test(q)){
+    return "😟 Sorry to hear that! Here's exactly what to do:<br><br>"
+      +"<b>1.</b> Check the 🔍 <b>Smart Search tab</b> — someone may have found it already<br>"
+      +"<b>2.</b> <a href='lost-items.html' style='color:#4f46e5;font-weight:600'>Report it on Lost Items →</a> with photo, location &amp; phone<br>"
+      +"<b>3.</b> Check the dashboard daily — matches are auto-detected instantly<br>"
+      +"<b>4.</b> If matched, call the finder using their phone number shown on the card<br><br>"
+      +"💡 <i>Adding a clear photo doubles your chance of recovery!</i>";
+  }
+  // Found something
+  if(/i found|found a|found my|picked up/.test(q)){
+    return "📦 Great of you to return it! Here's what to do:<br><br>"
+      +"<b>1.</b> <a href='found-items.html' style='color:#16a34a;font-weight:600'>Report on Found Items →</a> immediately<br>"
+      +"<b>2.</b> Upload a <b>clear photo</b> — this is the most important step<br>"
+      +"<b>3.</b> Add your contact number so the owner can reach you<br>"
+      +"<b>4.</b> Keep the item safe until the owner contacts you<br>"
+      +"<b>5.</b> Only hand it over after the owner correctly describes it<br><br>"
+      +"🙏 <i>Thank you for helping a fellow student!</i>";
+  }
+  // Claim
+  if(/claim|how to claim/.test(q)){
+    return "🏷️ <b>How to claim an item:</b><br><br>"
+      +"<b>1.</b> Go to <a href='found-items.html' style='color:#16a34a;font-weight:600'>Found Items page →</a><br>"
+      +"<b>2.</b> Find your item in the list<br>"
+      +"<b>3.</b> Click the <b>🏷 Claim button</b> on the card<br>"
+      +"<b>4.</b> Enter your <b>name and phone number</b><br>"
+      +"<b>5.</b> Admin reviews and sends <b>email notification</b> once approved<br>"
+      +"<b>6.</b> Contact the finder to collect your item<br><br>"
+      +"⏱️ Approval usually takes <b>1–2 days</b>.";
+  }
+  // Time / approval
+  if(/how long|how much time|when will|approval time|wait/.test(q)){
+    return "⏱️ <b>Typical timelines on ReShare Hub:</b><br><br>"
+      +"• <b>Claim approval:</b> 1–2 working days<br>"
+      +"• <b>Auto-matching:</b> Instant — system detects matches in real-time<br>"
+      +"• <b>Email notification:</b> Sent immediately after admin approves/rejects<br><br>"
+      +"If no response after 2 days, contact your admin at <b>@aec.edu.in</b>.";
+  }
+  // Matching
+  if(/match|matching|how does match/.test(q)){
+    return "🔗 <b>How auto-matching works:</b><br><br>"
+      +"• System compares <b>item names</b> of all lost &amp; found reports<br>"
+      +"• If names share keywords (e.g. both say 'bag' or 'phone') — flagged as match<br>"
+      +"• The <b>Matches count</b> on dashboard updates in real-time<br>"
+      +"• You can also search manually using the 🔍 <b>Smart Search tab</b><br><br>"
+      +"💡 <i>Use specific names like 'Blue Wildcraft Bag' for better matching!</i>";
+  }
+  // Tips / reporting
+  if(/tip|what details|should i include|how to report|reporting/.test(q)){
+    return "📝 <b>Tips for a great report:</b><br><br>"
+      +"• <b>Name:</b> Be specific — 'Blue Wildcraft Bag' not just 'bag'<br>"
+      +"• <b>Category:</b> Choose the right one (Electronics, Personal Items...)<br>"
+      +"• <b>Location:</b> Exact spot — 'Library Block C, Table 4'<br>"
+      +"• <b>Photo:</b> Upload a clear image — <b>most important!</b><br>"
+      +"• <b>Contact:</b> Add your correct phone number<br><br>"
+      +"The more details, the faster you'll recover your item! 🎯";
+  }
+  // Marketplace / book / sell
+  if(/marketplace|sell|buy|book|upload|list item|exchange/.test(q)){
+    return "🛒 <b>Campus Marketplace:</b><br><br>"
+      +"Buy, sell and exchange second-hand items with fellow students!<br><br>"
+      +"Available items: 📚 Textbooks · 🧮 Calculators · 🧪 Lab Equipment · 🎒 Bags<br><br>"
+      +"To list: Go to <b>Marketplace</b> in the navbar → click <b>+ List Item</b> → fill details → submit<br><br>"
+      +"💡 <i>Buy from seniors instead of buying new — save money!</i>";
+  }
+  // Admin / contact
+  if(/admin|contact admin|problem|issue|complaint|banned|restricted/.test(q)){
+    return "📧 <b>Contacting Admin:</b><br><br>"
+      +"• Wrong claim rejection → contact admin with your roll number<br>"
+      +"• Fake/spam item → admin can flag or remove it<br>"
+      +"• Account restricted → explain your case to admin<br>"
+      +"• Urgent issue → reach admin via college email <b>@aec.edu.in</b><br><br>"
+      +"Admins monitor the <b>Admin Dashboard</b> daily for all claims and reports.";
+  }
+  // Who are you
+  if(/who are you|what are you|your name|about you/.test(q)){
+    return "🤖 I'm the <b>Campus ReShare Hub AI Assistant</b>!<br><br>"
+      +"I help <b>Aditya Engineering College (AEC)</b> students with lost &amp; found queries.<br><br>"
+      +"✅ I work <b>completely offline</b> — no internet needed for me!<br>"
+      +"✅ I know the full ReShare Hub platform<br>"
+      +"✅ I give step-by-step guidance instantly<br><br>"
+      +"Just ask me anything about lost items, found items, or claims! 😊";
+  }
+  // Hi / hello
+  if(/^(hi|hello|hey|hii|hai|helo|yo|sup|good)/.test(q)){
+    return "👋 Hello! I'm your <b>Campus AI Assistant</b>.<br><br>"
+      +"How can I help you today?<br>"
+      +"• 😟 Lost something?<br>"
+      +"• 📦 Found something?<br>"
+      +"• 🏷️ Want to claim an item?<br>"
+      +"• 🛒 Marketplace question?<br><br>"
+      +"Type your question or tap a chip above!";
+  }
+  // Thanks
+  if(/thank|thanks|thx|ty|ok thanks/.test(q)){
+    return "😊 You're welcome! Happy to help.<br><br>"
+      +"Don't forget to <b>report your item</b> if you haven't already — it's the first step to getting it back! 🎯";
+  }
+  // Default
+  return "🤔 I can help you with these topics — just type or tap a chip!<br><br>"
+    +"• 😟 <i>I lost my bag</i> — what to do<br>"
+    +"• 📦 <i>I found a phone</i> — what to do<br>"
+    +"• 🏷️ <i>How do I claim an item</i><br>"
+    +"• 🔗 <i>How does matching work</i><br>"
+    +"• 🛒 <i>Can I sell my textbook</i><br>"
+    +"• 📝 <i>Tips for reporting</i><br><br>"
+    +"Or use the <b>Smart Search tab</b> to search Firebase directly!";
+}
+
+function aiAddUser(text){
+  var box = document.getElementById("ai-msgs");
+  var d = document.createElement("div");
+  d.className = "muser"; d.style.animation = "fadeUp 0.25s ease";
+  d.innerHTML = '<div class="mbbl">' + esc(text) + '</div>'
+    + '<div class="mav" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);font-size:11px;">' + esc(UINIT) + '</div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+
+function aiAddBot(html){
+  aiRemoveTyping();
+  var box = document.getElementById("ai-msgs");
+  var t   = new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  var d   = document.createElement("div");
+  d.className = "mbot"; d.style.animation = "fadeUp 0.3s ease";
+  d.innerHTML = '<div class="mav" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">🤖</div>'
+    + '<div style="max-width:85%;">'
+    + '<div class="mbbl" style="border-radius:4px 14px 14px 14px;">' + html + '</div>'
+    + '<div style="font-size:9px;color:#9ca3af;margin:2px 0 0 4px;">' + t + ' · Campus AI</div>'
+    + '</div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+
+function aiAddTyping(){
+  if(document.getElementById("ai-typing")) return;
+  var box = document.getElementById("ai-msgs");
+  var d   = document.createElement("div");
+  d.className = "mbot"; d.id = "ai-typing";
+  d.innerHTML = '<div class="mav" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);">🤖</div>'
+    + '<div class="mbbl" style="border-radius:4px 14px 14px 14px;">'
+    + '<div class="dots"><span></span><span></span><span></span></div></div>';
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+}
+
+function aiRemoveTyping(){ var e=document.getElementById("ai-typing"); if(e) e.parentNode.removeChild(e); }
+
+// ════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// Required by script.js
+function closeChat(){ document.getElementById("chatBox").style.display = "none"; }
+function closeImage(){ document.getElementById("imageModal").style.display = "none"; }
+
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+<script>
+  (function(){
+    emailjs.init("7JhGzfkaw_c7uaeGh");
+  })();
+</script>
+<form id="emailForm" action="https://formsubmit.co/YOUR_EMAIL@gmail.com" method="POST" style="display:none;">
+  <input type="text" name="name" id="mail_name">
+  <input type="text" name="message" id="mail_message">
+  <input type="email" name="email" id="mail_to">
+</form>
+</body>
+</html>
