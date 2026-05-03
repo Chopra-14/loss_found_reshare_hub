@@ -12,21 +12,24 @@
     if(localStorage.getItem("theme")==="dark") document.documentElement.setAttribute("data-theme","dark");
   </script>
 
-  <!-- ✅ Firebase FIRST — before everything -->
+  <!-- ✅ Firebase v8 — MUST load before script.js -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script>
     var firebaseConfig = {
-      apiKey: "AIzaSyAEZf8xbIFCzjHZ5PzzhMFltAOmnluJnwk",
-      authDomain: "campus-reshare.firebaseapp.com",
-      databaseURL: "https://campus-reshare-default-rtdb.firebaseio.com/",
-      projectId: "campus-reshare",
-      storageBucket: "campus-reshare.appspot.com",
+      apiKey:            "AIzaSyAEZf8xbIFCzjHZ5PzzhMFltAOmnluJnwk",
+      authDomain:        "campus-reshare.firebaseapp.com",
+      databaseURL:       "https://campus-reshare-default-rtdb.firebaseio.com",
+      projectId:         "campus-reshare",
+      storageBucket:     "campus-reshare.appspot.com",
       messagingSenderId: "182045823730",
-      appId: "1:182045823730:web:fe14335d18c777acaf766b"
+      appId:             "1:182045823730:web:fe14335d18c777acaf766b"
     };
     if(!firebase.apps.length){ firebase.initializeApp(firebaseConfig); }
   </script>
+
+  <!-- ✅ EmailJS SDK — needed for match email notifications -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -85,7 +88,10 @@
     <div class="input-group"><span>📍</span><input type="text" id="itemLocation" placeholder="Last seen location"></div>
     <div class="input-group"><span>👤</span><input type="text" id="contactName" placeholder="Your Name"></div>
     <div class="input-group"><span>📞</span><input type="text" id="contactPhone" placeholder="Phone Number"></div>
-    <div class="upload-box"><label>📸 Upload Image</label><input type="file" id="itemImage" accept="image/*"></div>
+    <div class="upload-box">
+      <label>📸 Upload Image</label>
+      <input type="file" id="itemImage" accept="image/*">
+    </div>
     <div class="form-buttons">
       <button onclick="submitForm()" class="submit-btn">🚀 Submit</button>
       <button onclick="closeForm()" class="close-btn">✖ Close</button>
@@ -107,12 +113,14 @@
     </div>
   </div>
 </div>
+
+<!-- IMAGE ZOOM MODAL -->
 <div id="imageModal" class="image-modal" onclick="if(event.target===this)closeImage()">
   <button onclick="closeImage()" class="close-modal">✕</button>
   <img id="modalImg" class="modal-content" alt="Item Image">
 </div>
 
-<!-- ✅ auth and script AFTER Firebase -->
+<!-- ✅ auth.js + script.js AFTER Firebase -->
 <script src="auth.js"></script>
 <script src="script.js"></script>
 <script>
