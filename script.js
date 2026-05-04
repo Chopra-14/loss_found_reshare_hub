@@ -9,9 +9,9 @@ var dbPath     = isLostPage ? "lostItems" : "foundItems";
 // Step 3: Email Services → your Gmail service → copy Service ID
 // Step 4: Email Templates → your template → copy Template ID
 // Step 5: In your template, set "To Email" field to: {{to_email}}
-var EJS_PUBLIC_KEY   = "7JhGzfkaw_c7uaeGh";   // e.g. "abc123XYZxxxxxx"
-var EJS_SERVICE_ID   = "service_wsrl68n";   // e.g. "service_abc123"
-var EJS_TEMPLATE_ID  = "template_zsfguy6";  // e.g. "template_xyz456"
+var EJS_PUBLIC_KEY   = "YOUR_EMAILJS_PUBLIC_KEY";   // e.g. "abc123XYZxxxxxx"
+var EJS_SERVICE_ID   = "YOUR_EMAILJS_SERVICE_ID";   // e.g. "service_abc123"
+var EJS_TEMPLATE_ID  = "YOUR_EMAILJS_TEMPLATE_ID";  // e.g. "template_xyz456"
 
 // ================= OPEN / CLOSE FORM =================
 function openForm(){
@@ -105,59 +105,130 @@ function checkForMatch(itemName, category, reporterData, newItemId){
     if(matches.length === 0) return;
 
     if(!isLostPage){
-      // Person posted FOUND item — notify lost item owner
+      // I posted a FOUND item
+      // Email 1 to lost owner (their email from Firebase)
+      // Email 2 to me/finder (current logged-in user)
       showMatchPopup_ToFinder(itemName, matches, reporterData);
       matches.forEach(function(m){
-        sendMatchEmail(
-          m.item.userEmail,           // TO: person who lost the item
-          m.item.contactName,         // their name
-          m.item.name,                // their lost item
-          "lost",
-          reporterData.contactName,   // finder's name
-          reporterData.contactPhone,  // finder's phone
-          reporterData.location,      // found at
-          "🎉 Your lost item may have been found!",
-          "Someone just reported finding an item that matches yours. Contact the finder below to verify and collect."
-        );
-        // Also notify the finder about the lost owner's contact
-        sendMatchEmail(
-          reporterData.userEmail,     // TO: finder
-          reporterData.contactName,
-          itemName,
-          "found",
-          m.item.contactName,         // lost owner's name
-          m.item.contactPhone,        // lost owner's phone
-          m.item.location,
-          "📦 Someone lost this item!",
-          "The item you found matches a lost report. The owner's contact details are below."
-        );
-      });
-    } else {
-      // Person posted LOST item — check found items
-      showMatchPopup_ToOwner(itemName, matches);
-      matches.forEach(function(m){
-        sendMatchEmail(
-          reporterData.userEmail,     // TO: person who just posted lost
-          reporterData.contactName,
-          itemName,
-          "lost",
-          m.item.contactName,         // finder's name
-          m.item.contactPhone,        // finder's phone
-          m.item.location,
-          "🔍 Your item may already be found!",
-          "Good news! Someone already reported finding a similar item. Contact the finder below."
-        );
-        // Also notify the finder
-        sendMatchEmail(
-          m.item.userEmail,
+        var lostOwnerEmail = (m.item.userEmail || "").trim();
+        var finderEmail    = (reporterData.userEmail || localStorage.getItem("user") || "").trim();
+
+        console.log("MATCH EMAILS → lostOwner:", lostOwnerEmail, "| finder:", finderEmail);
+
+        // Email + WhatsApp to LOST OWNER — their item was found
+        if(lostOwnerEmail && lostOwnerEmail !== finderEmail){
+          sendMatchEmail(
+            lostOwnerEmail,
+            m.item.contactName,
+            m.item.name,
+            "lost",
+            reporterData.contactName,
+            reporterData.contactPhone,
+            reporterData.location,
+            "🎉 Your lost item may have been found!",
+            "Great news! Someone just reported finding an item that matches yours. Contact the finder below to verify and collect your item."
+          );
+        } else {
+          console.warn("Lost owner email missing or same as finder. Value: [" + lostOwnerEmail + "]");
+        }
+        // WhatsApp to LOST OWNER
+        sendWhatsAppNotification(
+          m.item.contactPhone,
           m.item.contactName,
           m.item.name,
-          "found",
           reporterData.contactName,
           reporterData.contactPhone,
           reporterData.location,
-          "🔴 Someone is looking for this item!",
-          "A student just reported losing an item that matches what you found. Their contact details are below."
+          "found_to_lostowner"
+        );
+
+        // Email + WhatsApp to FINDER (me) — confirmation + lost owner contact
+        if(finderEmail){
+          sendMatchEmail(
+            finderEmail,
+            reporterData.contactName,
+            itemName,
+            "found",
+            m.item.contactName,
+            m.item.contactPhone,
+            m.item.location,
+            "📦 The owner of this item is looking for it!",
+            "The item you just reported matches a lost item report. The owner's contact details are below. Please help them get it back!"
+          );
+        }
+        // WhatsApp to FINDER
+        sendWhatsAppNotification(
+          reporterData.contactPhone,
+          reporterData.contactName,
+          itemName,
+          m.item.contactName,
+          m.item.contactPhone,
+          m.item.location,
+          "lost_to_finder"
+        );
+      });
+
+    } else {
+      // I posted a LOST item
+      // Email 1 to me (current logged-in user)
+      // Email 2 to finder (their email from Firebase)
+      showMatchPopup_ToOwner(itemName, matches);
+      matches.forEach(function(m){
+        var lostPersonEmail = (reporterData.userEmail || localStorage.getItem("user") || "").trim();
+        var finderEmail     = (m.item.userEmail || "").trim();
+
+        console.log("MATCH EMAILS → lostPerson:", lostPersonEmail, "| finder:", finderEmail);
+
+        // Email + WhatsApp to ME (lost item owner)
+        if(lostPersonEmail){
+          sendMatchEmail(
+            lostPersonEmail,
+            reporterData.contactName,
+            itemName,
+            "lost",
+            m.item.contactName,
+            m.item.contactPhone,
+            m.item.location,
+            "🔍 Your item may already be found!",
+            "Good news! Someone already reported finding a similar item on campus. Contact the finder below to verify and collect."
+          );
+        }
+        // WhatsApp to LOST PERSON (me)
+        sendWhatsAppNotification(
+          reporterData.contactPhone,
+          reporterData.contactName,
+          itemName,
+          m.item.contactName,
+          m.item.contactPhone,
+          m.item.location,
+          "match_to_lostperson"
+        );
+
+        // Email + WhatsApp to FINDER — someone is looking for what they found
+        if(finderEmail && finderEmail !== lostPersonEmail){
+          sendMatchEmail(
+            finderEmail,
+            m.item.contactName,
+            m.item.name,
+            "found",
+            reporterData.contactName,
+            reporterData.contactPhone,
+            reporterData.location,
+            "🔴 Someone is looking for the item you found!",
+            "A student just reported losing an item that matches what you found. Their contact details are below. Please help them!"
+          );
+        } else {
+          console.warn("Finder email missing or same as lost person. Value: [" + finderEmail + "]");
+        }
+        // WhatsApp to FINDER
+        sendWhatsAppNotification(
+          m.item.contactPhone,
+          m.item.contactName,
+          m.item.name,
+          reporterData.contactName,
+          reporterData.contactPhone,
+          reporterData.location,
+          "match_to_finder"
         );
       });
     }
@@ -176,6 +247,61 @@ function checkForMatch(itemName, category, reporterData, newItemId){
       });
     });
   });
+}
+
+// ================= SEND WHATSAPP NOTIFICATION =================
+// Safe approach: saves wa.me link in Firebase + shows in-app notification
+// No external API calls = no browser security warnings
+
+function sendWhatsAppNotification(phone, studentName, itemName, otherName, otherPhone, otherLocation, messageType){
+  if(!phone || phone === "—"){
+    console.warn("⚠️ No phone number — WhatsApp skipped");
+    return;
+  }
+
+  // Clean phone — digits only, add India country code
+  var cleaned = phone.replace(/\D/g, "");
+  if(cleaned.length === 10) cleaned = "91" + cleaned;
+
+  var msg = "";
+  if(messageType === "found_to_lostowner"){
+    msg = "🎉 Hi " + studentName + "! Your lost item *" + itemName + "* may have been found!\n\n"
+        + "👤 Finder: *" + otherName + "*\n"
+        + "📞 Phone: *" + otherPhone + "*\n"
+        + "📍 Location: *" + otherLocation + "*\n\n"
+        + "Contact them to verify and collect! 🙏\n— Campus ReShare Hub";
+  } else if(messageType === "lost_to_finder"){
+    msg = "📦 Hi " + studentName + "! Someone is looking for the item you found!\n\n"
+        + "👤 Owner: *" + otherName + "*\n"
+        + "📞 Phone: *" + otherPhone + "*\n"
+        + "📍 Lost at: *" + otherLocation + "*\n\n"
+        + "Please help them get it back! 🙏\n— Campus ReShare Hub";
+  } else if(messageType === "match_to_lostperson"){
+    msg = "🔍 Hi " + studentName + "! Your lost item *" + itemName + "* may already be found!\n\n"
+        + "👤 Finder: *" + otherName + "*\n"
+        + "📞 Phone: *" + otherPhone + "*\n"
+        + "📍 Found at: *" + otherLocation + "*\n\n"
+        + "Visit Found Items to verify! 🙏\n— Campus ReShare Hub";
+  } else if(messageType === "match_to_finder"){
+    msg = "🔴 Hi " + studentName + "! Someone lost an item matching what you found!\n\n"
+        + "👤 Lost by: *" + otherName + "*\n"
+        + "📞 Phone: *" + otherPhone + "*\n"
+        + "📍 Lost at: *" + otherLocation + "*\n\n"
+        + "Please contact them! 🙏\n— Campus ReShare Hub";
+  }
+
+  // ✅ Save notification to Firebase — shown as in-app bell notification
+  firebase.database().ref("notifications/" + cleaned).push({
+    message:   msg,
+    waLink:    "https://wa.me/" + cleaned + "?text=" + encodeURIComponent(msg),
+    phone:     cleaned,
+    name:      studentName,
+    itemName:  itemName,
+    time:      new Date().toLocaleString(),
+    read:      false
+  });
+
+  console.log("✅ WhatsApp notification saved to Firebase for +" + cleaned);
 }
 
 // ================= SEND EMAIL via EmailJS =================
